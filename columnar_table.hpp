@@ -11,6 +11,8 @@ namespace enn {
     template<typename... Fields>
     class columnar_table {
 
+        static_assert(sizeof...(Fields) > 0, "ERROR: columnar_table is expected to have at least one column");
+
         using indices = std::index_sequence_for<Fields...>;
 
         std::tuple<std::vector<Fields>...> cols_;
@@ -25,15 +27,15 @@ namespace enn {
             return std::tuple<Fields...>(getter(std::get<Indices>(cols_))...);
         }
 
-        template<std::size_t... Indices>
-        void push_row_impl(std::tuple<Fields...> const& fields, std::index_sequence<Indices...>) {
+        template<typename Tuple, std::size_t... Indices>
+        void push_row_impl(Tuple&& fields, std::index_sequence<Indices...>) {
             auto pusher = [](auto& col, auto&& val) {
                 col.push_back(std::forward<decltype(val)>(val));
                 return 0;
             };
 
             // it is required, since there is a pack of return values
-            [](...){}(pusher(std::get<Indices>(cols_), std::get<Indices>(fields))...);
+            [](...){}(pusher(std::get<Indices>(cols_), std::get<Indices>(std::forward<Tuple>(fields)))...);
         }
 
     public:
@@ -54,6 +56,10 @@ namespace enn {
 
         void push_row(std::tuple<Fields...> const& fields) {
             return push_row_impl(fields, indices{});
+        }
+
+        void push_row(std::tuple<Fields...>&& fields) {
+            return push_row_impl(std::move(fields), indices{});
         }
 
     };
